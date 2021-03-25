@@ -7,13 +7,6 @@ public abstract class ChessBoard {
         return true;
     }
 
-    public static ChessPiece[][] getChessPieces () {
-        return chessPieces;
-    }
-    public static void setChessPieces (ChessPiece[][] chessPieces) {
-        ChessBoard.chessPieces = chessPieces;
-    }
-
     public abstract static class ChessPiece {
         protected int x, y;
         protected static final int WHITE_SIDE = 1;
@@ -23,24 +16,30 @@ public abstract class ChessBoard {
         protected BufferedImage image;
 
         private boolean move(int x, int y){
-            if(checkKing(x, y)&&checkMove(x, y)){
-                getChessPieces()[x][y] = this;
+            try {
+                if (checkKing(x, y) && checkMove(x, y)) {
+                    chessPieces[y][x] = this;
+                    return true;
+                }
+            }catch (AttackException e){
+                chessPieces[e.getX()][e.getY()] = null;
                 return true;
+            }catch (FirstPawnMoveException e){
+
             }
             return false;
         }
-        protected abstract boolean checkMove(int x, int y);
+        protected abstract boolean checkMove(int x, int y) throws AttackException, FirstPawnMoveException;
         //Проверка для взятия на проходе
         protected boolean isPiece(){return true;}
     }
 
-    class EnPassant extends ChessPiece {
-        //Взятие на проходе(проверка, была ли там пешка)
+    //Взятие на проходе
+    class EnPassant extends ChessPiece{
         @Override
-        protected boolean isPiece(){
-            return false;
-        }
-        protected boolean checkMove(int x, int y){return false;}
+        protected boolean checkMove(int x, int y) throws AttackException, FirstPawnMoveException{return false;}
+        @Override
+        protected boolean isPiece(){return false;}
     }
 
     //Пешка
@@ -48,14 +47,19 @@ public abstract class ChessBoard {
         private boolean isFirstPos = true;
 
         @Override
-        protected boolean checkMove (int x, int y) {
+        protected boolean checkMove (int x, int y) throws AttackException, FirstPawnMoveException{
+            if((y == chessPieces.length && this.x == x) && (chessPieces[y][x] == null)) throw new PromotionException();
             //Простой ход на клетку вперед
-            if ((y == this.y + 1 && this.x == x) && (chessPieces[x][y] == null)) return true;
+            if ((y == this.y + 1 && this.x == x) && (chessPieces[y][x] == null)) return true;
+            //Ход на две клетки
+            if ((y == this.y + 2) && this.isFirstPos && (chessPieces[y][x] == null&&chessPieces[y-1][x] == null)) throw new FirstPawnMoveException(y, x);
             //Ход на клетку по диагонали с поеданием фигуры
-            if ((y == this.y + 1 && x == this.x + 1 || y == this.y + 1 && x == this.x - 1) && (chessPieces[x][y] != null && chessPieces[x][y].side != this.side))
-                return true;
+            if ((y == this.y + 1 && x == this.x + 1 || y == this.y + 1 && x == this.x - 1) && (chessPieces[x][y] != null && chessPieces[x][y].side != this.side)) {
+                throw new AttackException(x, y);
+            }
             return false;
         }
+
     }
     //Ладья
     class Rook extends ChessPiece implements StraightMove{
@@ -97,10 +101,13 @@ public abstract class ChessBoard {
     }
     interface DiagonalMove{
         default boolean checkDiagonalMove(int x, int y, int this_X, int this_Y){
-            while (this_X!=x){
-                this_X++;
-                this_Y++;
-                if(chessPieces[this_X][this_Y]!=null||chessPieces[this_X][this_Y].isPiece()) return false;
+            //Движение вправо вверх
+            if(x>this_X||y>this_Y){
+                while (this_X<=x){
+                    this_X++;
+                    this_Y++;
+                    if(chessPieces[this_X][this_Y]!=null&&chessPieces[this_X][this_X].isPiece())
+                }
             }
             return true;
         }
