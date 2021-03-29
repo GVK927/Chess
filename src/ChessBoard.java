@@ -1,13 +1,48 @@
 import java.awt.image.BufferedImage;
+import java.util.Arrays;
 
 public abstract class ChessBoard {
     private static ChessPiece[][] chessPieces;
-    private static boolean checkBounds(int x, int y){
-        if(x>=chessPieces.length||x<0||y>=chessPieces.length||y<0) return false;
-        return true;
+
+    //Заполнение доски
+    {
+        //Генерация белых фигур
+        chessPieces = new ChessPiece[8][8];
+        chessPieces[0] = new ChessPiece[]{
+                new Rook(0, 0, ChessPiece.WHITE_SIDE),
+                new Knight(1,0, ChessPiece.WHITE_SIDE),
+                new Bishop(2,0, ChessPiece.WHITE_SIDE),
+                new Queen(3,0, ChessPiece.WHITE_SIDE),
+                new King(4,0, ChessPiece.WHITE_SIDE),
+                new Bishop(5,0, ChessPiece.WHITE_SIDE),
+                new Knight(6,0, ChessPiece.WHITE_SIDE),
+                new Rook(7,0, ChessPiece.WHITE_SIDE)
+        };
+        int c = 0;
+        for(ChessPiece i:chessPieces[1]){
+            i = new Pawn(c,1, ChessPiece.WHITE_SIDE);
+            c++;
+        }
+        //Генерация черных
+        chessPieces = new ChessPiece[8][8];
+        chessPieces[7] = new ChessPiece[]{
+                new Rook(0, 7, ChessPiece.BLACK_SIDE),
+                new Knight(1, 7, ChessPiece.BLACK_SIDE),
+                new Bishop(2, 7, ChessPiece.BLACK_SIDE),
+                new Queen(3, 7, ChessPiece.BLACK_SIDE),
+                new King(4, 7, ChessPiece.BLACK_SIDE),
+                new Bishop(5, 7, ChessPiece.BLACK_SIDE),
+                new Knight(6, 7, ChessPiece.BLACK_SIDE),
+                new Rook(7, 7, ChessPiece.BLACK_SIDE)
+        };
+        int d = 0;
+        for(ChessPiece i:chessPieces[6]){
+            i = new Pawn(d,6, ChessPiece.BLACK_SIDE);
+            c++;
+        }
     }
 
-    public abstract static class ChessPiece {
+    public abstract class ChessPiece {
         protected int x, y;
         protected static final int WHITE_SIDE = 1;
         protected static final int BLACK_SIDE = 2;
@@ -15,32 +50,80 @@ public abstract class ChessBoard {
         protected int side;
         protected BufferedImage image;
 
-        private boolean move(int x, int y){
+        protected boolean move(int piece_x, int piece_y, int x, int y) {
             try {
-                if (checkKing(x, y) && checkMove(x, y)) {
+                if (checkKing(this, x, y) && chessPieces[piece_y][piece_x].checkMove(x, y)){
                     chessPieces[y][x] = this;
                     return true;
                 }
-            }catch (AttackException e){
-                chessPieces[e.getX()][e.getY()] = null;
+            } catch (AttackException e) {
+                chessPieces[e.getY()][e.getX()] = this;
+                chessPieces[y][x] = null;
                 return true;
-            }catch (FirstPawnMoveException e){
-
+            }
+            catch (FirstPawnMoveException e) {
+                chessPieces[e.getY()][e.getX()] = this;
+                chessPieces[e.getY()-1][e.getX()] = new EnPassant(e.getX(), e.getY(), chessPieces[piece_y][piece_x].side);
+            }
+            catch (PromotionException e){
+                //Выбор фигуры
             }
             return false;
         }
+
+        protected ChessPiece(int x, int y, int side) {
+            this.x = x;
+            this.y = y;
+            this.side = side;
+        }
         protected abstract boolean checkMove(int x, int y) throws AttackException, FirstPawnMoveException, PromotionException;
+
         //Проверка для взятия на проходе
-        protected boolean isPiece(){return true;}
+        protected boolean isPiece() {
+            return true;
+        }
+
         //Проверка на поедание (не для пешки)
-        protected boolean checkAttack(int x, int y){
-            if(chessPieces[y][x]!=null&&chessPieces[y][x].side!=this.side) return true;
+        protected boolean checkAttack(int x, int y) {
+            if (chessPieces[y][x] != null && chessPieces[y][x].side != this.side) return true;
             return false;
         }
         //Проверка на союзную фигуру в месте хода
-        protected boolean checkAlly(int x, int y){
-            if(chessPieces[y][x].isPiece()&&chessPieces[y][x].side==this.side) return true;
+        protected boolean checkAlly(int x, int y) {
+            if (chessPieces[y][x].isPiece() && chessPieces[y][x].side == this.side) return true;
             return false;
+        }
+
+        //Проверка на мат после хода
+        private boolean checkKing(ChessPiece piece, int x, int y) {
+            for (ChessPiece[] i : chessPieces) {
+                for (ChessPiece j : i) {
+                    if (j.getClass().getName().equals("King")&&j.side==this.side) {
+                        ChessPiece[][] chessPieces_ = Arrays.copyOf(chessPieces, chessPieces.length);
+                        chessPieces[piece.y][piece.x]=null;
+                        chessPieces[y][x]=piece;
+                        if(checkMoves(j.x, j.y)){
+                            chessPieces=Arrays.copyOf(chessPieces_, chessPieces_.length);
+                            return false;
+                        }
+                    }
+                }
+            }
+            return true;
+        }
+        private boolean checkMoves(int king_x, int king_y) {
+            for (ChessPiece[] i : chessPieces) {
+                for (ChessPiece j : i) {
+                    try {
+                        if (!j.checkMove(king_x, king_y)) return false;
+                    } catch (AttackException e) {
+                    } catch (FirstPawnMoveException e) {
+                    } catch (PromotionException e) {
+                        return false;
+                    }
+                }
+            }
+            return true;
         }
     }
 
@@ -50,6 +133,9 @@ public abstract class ChessBoard {
         protected boolean checkMove(int x, int y) {return false;}
         @Override
         protected boolean isPiece(){return false;}
+        EnPassant(int x, int y, int side){
+            super(x, y, side);
+        }
     }
 
     //Пешка
@@ -69,6 +155,9 @@ public abstract class ChessBoard {
             return false;
         }
 
+        Pawn(int x, int y, int side){
+            super(x, y, side);
+        }
     }
     //Ладья
     class Rook extends ChessPiece implements StraightMove{
@@ -82,6 +171,10 @@ public abstract class ChessBoard {
             //Проверка на союзную фигуру в месте хода
             return !checkAlly(x, y);
         }
+
+        Rook(int x, int y, int side){
+            super(x, y, side);
+        }
     }
     //Слон
     class Bishop extends ChessPiece implements DiagonalMove{
@@ -94,6 +187,10 @@ public abstract class ChessBoard {
             //Проверка на союзную фигуру в месте хода
             return !checkAlly(x, y);
         }
+
+        Bishop(int x, int y, int side){
+            super(x, y, side);
+        }
     }
     //Конь
     class Knight extends ChessPiece{
@@ -102,6 +199,10 @@ public abstract class ChessBoard {
             if(chessPieces[y][x]==null) return true;
             if(checkAttack(x, y)) throw new AttackException(x, y);
             return !checkAlly(x, y);
+        }
+
+        Knight(int x, int y, int side){
+            super(x, y, side);
         }
     }
     //Ферзь
@@ -112,6 +213,10 @@ public abstract class ChessBoard {
             if(checkAttack(x, y)) throw new AttackException(x, y);
             return !checkAlly(x, y);
         }
+
+        Queen(int x, int y, int side){
+            super(x, y, side);
+        }
     }
     //Король
     class King extends ChessPiece{
@@ -120,13 +225,30 @@ public abstract class ChessBoard {
             for(ChessPiece[] i:chessPieces){
                 for(ChessPiece j:i){
                     if(j.side==this.side) continue;
+                    //Проверка ходов всех фигур, кроме короля
                     try {
                         if(j.checkMove(x, y)&&!chessPieces[y][x].getClass().getName().equals("King")); return false;
-                    }catch (ChessMoveException e){
-                        if(e.x==this.x&&e.y==this.y) return false;
+                    }catch (AttackException e){}
+                    catch (FirstPawnMoveException e){}
+                    catch (PromotionException e) {
+                        if (e.x == this.x && e.y == this.y) return false;
                     }
                 }
             }
+            //Проверка для вражеского короля
+            for(int i = 0; i<3; i++){
+                for(int j = 0; j<3; j++){
+                    if(i==1&&j==1) continue;
+                    try {
+                        if(chessPieces[i][j].getClass().getName().equals("King")) return false;
+                    }catch (ArrayIndexOutOfBoundsException e){}
+                }
+            }
+            return true;
+        }
+
+        King(int x, int y, int side){
+            super(x, y, side);
         }
     }
 
