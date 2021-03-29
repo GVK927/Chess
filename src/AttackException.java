@@ -1,10 +1,7 @@
-public class AttackException extends Exception {
-    private int x, y;
-
+public class AttackException extends ChessMoveException{
     public int getX() {
         return x;
     }
-
     public int getY() {
         return y;
     }
@@ -12,6 +9,5 @@ public class AttackException extends Exception {
     public AttackException(int x, int y){
         this.x = x;
         this.y = y;
-
     }
 }

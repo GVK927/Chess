@@ -1,10 +1,7 @@
-public class FirstPawnMoveException extends Exception{
-    private int x, y;
-
+public class FirstPawnMoveException extends ChessMoveException{
     public int getX() {
         return x;
     }
-
     public int getY() {
         return y;
     }
